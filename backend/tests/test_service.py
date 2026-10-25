@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.config import Settings
@@ -409,6 +411,86 @@ async def test_safety_critical_events_defer_to_runtime_and_route_events_use_repl
     assert first == duplicate
     assert first["status"] == "VERIFIED"
     assert engine.stages == ["replanner"]
+
+
+@pytest.mark.asyncio
+async def test_replanner_receives_event_and_previous_accepted_authority_context() -> None:
+    class RecordingEngine(StaticProposalEngine):
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        async def propose(self, *args, **kwargs):
+            self.calls.append(kwargs.copy())
+            return await super().propose(*args, **kwargs)
+
+    engine = RecordingEngine()
+    service = MissionService(MockWorldPort(), MockVerifierPort(), MockExecutionPort(), engine)
+    value = mission()
+    initial = await service.plan(value, "initial")
+    event = SimulationEvent(
+        event_id="zone-change",
+        mission_id=value.mission_id,
+        sequence=1,
+        family=EventFamily.NEW_RESTRICTED_ZONE,
+        state_revision="world-1",
+        payload={"zone_ref": "zone-2"},
+        source="simulator",
+    )
+    receipt = await service.receive_event(event, value, "replan")
+
+    assert receipt["status"] == "VERIFIED"
+    replan_call = engine.calls[-1]
+    assert replan_call["stage"] == "replanner"
+    assert replan_call["trigger_event"] == event
+    assert replan_call["previous_accepted"].plan_id == initial.plans[-1].plan_id
+    assert replan_call["previous_certificate"].plan_id == initial.plans[-1].plan_id
+    assert service.operations[value.mission_id].plans[-1].parent_plan_id == initial.plans[-1].plan_id
+
+
+@pytest.mark.asyncio
+async def test_safety_event_invalidates_inflight_plan_before_handoff() -> None:
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    class BlockingVerifier:
+        is_mock = True
+
+        async def verify(self, plan, _mission, snapshot):
+            entered.set()
+            await release.wait()
+            return VerificationResult(
+                passed=True,
+                certificate=Certificate(
+                    certificate_ref="external",
+                    plan_id=plan.plan_id,
+                    snapshot_revision=snapshot.world_state.revision,
+                    issuer="verifier",
+                ),
+            )
+
+    execution = MockExecutionPort()
+    service = MissionService(
+        MockWorldPort(), BlockingVerifier(), execution, StaticProposalEngine()
+    )
+    value = mission()
+    planning = asyncio.create_task(service.plan(value, "planning"))
+    await entered.wait()
+    event = SimulationEvent(
+        event_id="wind-change",
+        mission_id=value.mission_id,
+        sequence=1,
+        family=EventFamily.WIND_SPIKE,
+        state_revision="world-1",
+        source="simulator",
+    )
+    receipt = await service.receive_event(event, value, "event")
+    release.set()
+    operation = await planning
+
+    assert receipt["status"] == "RUNTIME_ACTION_REQUIRED_NO_REPLAN"
+    assert operation.status == "FAILED"
+    assert operation.error and operation.error.code is ErrorCode.STATE_STALE
+    assert execution.handoffs == []
 
 
 @pytest.mark.asyncio

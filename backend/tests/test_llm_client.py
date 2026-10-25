@@ -96,6 +96,9 @@ async def test_json_mode_is_only_sent_for_capability_verified_model() -> None:
     assert trace.provider_request_id == "request-1"
     assert trace.input_tokens is None
     assert trace.estimated_cost_usd is None
+    assert trace.cost_status == "unknown_usage"
+    assert trace.routing_reason == "test"
+    assert trace.prompt_revision == "unknown"
 
 
 @pytest.mark.asyncio

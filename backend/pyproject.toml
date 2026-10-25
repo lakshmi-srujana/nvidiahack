@@ -30,3 +30,6 @@ ignore = ["E501"]
 
 [tool.setuptools.packages.find]
 include = ["app*", "bench*"]
+
+[tool.setuptools.package-data]
+"app.llm.prompts" = ["*.md"]

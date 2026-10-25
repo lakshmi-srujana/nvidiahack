@@ -40,6 +40,8 @@ def test_aggregation_is_deterministic_and_writes_manifest(tmp_path: Path) -> Non
     manifest = json.loads((output / "run_manifest.json").read_text(encoding="utf-8"))
     assert manifest["record_count"] == 1
     assert manifest["modes"] == ["RAW"]
+    assert (output / "attempts.csv").is_file()
+    assert "git" in manifest
 
 
 def test_benchmark_artifact_endpoints(tmp_path: Path) -> None:
@@ -50,10 +52,17 @@ def test_benchmark_artifact_endpoints(tmp_path: Path) -> None:
         summary = client.get("/api/v1/benchmarks/run-1")
         scoreboard = client.get("/api/v1/benchmarks/run-1/scoreboard")
         case = client.get("/api/v1/benchmarks/run-1/cases/case-1")
+        breakdowns = client.get("/api/v1/benchmarks/run-1/breakdowns")
+        artifact = client.get("/api/v1/benchmarks/run-1/artifacts/attempts.csv")
+        denied_artifact = client.get("/api/v1/benchmarks/run-1/artifacts/private.env")
         traversal = client.get("/api/v1/benchmarks/../scoreboard")
 
     assert listed.json()["runs"][0]["run_id"] == "run-1"
     assert summary.json()["manifest"]["record_count"] == 1
     assert scoreboard.json()["source_record_count"] == 1
     assert case.json()["records"][0]["case_id"] == "case-1"
+    assert breakdowns.status_code == 200
+    assert artifact.status_code == 200
+    assert "attachment" in artifact.headers["content-disposition"]
+    assert denied_artifact.status_code == 404
     assert traversal.status_code == 404

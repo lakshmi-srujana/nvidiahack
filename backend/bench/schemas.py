@@ -56,3 +56,9 @@ class AttemptRecord(BaseModel):
     tavily_calls: int | None = Field(default=None, ge=0)
     error_code: str | None = None
     finished_at_utc: str | None = None
+    attack_class: str | None = None
+    suite_version: str | None = None
+    test_case_hash: str | None = None
+    adapter: str | None = None
+    prompt_revisions: list[str] = Field(default_factory=list)
+    models_used: list[str] = Field(default_factory=list)

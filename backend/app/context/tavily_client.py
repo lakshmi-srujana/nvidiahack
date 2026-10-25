@@ -15,6 +15,7 @@ from app.contracts import Mission
 
 class ContextStatus(StrEnum):
     OK = "OK"
+    STALE = "STALE"
     NO_RESULTS = "NO_RESULTS"
     UNAVAILABLE = "UNAVAILABLE"
 
@@ -28,6 +29,7 @@ class ContextBundle(BaseModel):
     retrieved_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     latency_ms: int | None = None
     from_cache: bool = False
+    cache_age_s: float | None = None
     warnings: tuple[str, ...] = ()
 
 
@@ -66,16 +68,32 @@ class TavilyContextClient:
         now = time.monotonic()
         cached = self._cache.get(query)
         if cached and now - cached[0] <= self.settings.tavily_cache_ttl_s:
-            return cached[1].model_copy(update={"from_cache": True})
+            return cached[1].model_copy(
+                update={"from_cache": True, "cache_age_s": now - cached[0]}
+            )
 
         async with self._lock:
             cached = self._cache.get(query)
             now = time.monotonic()
             if cached and now - cached[0] <= self.settings.tavily_cache_ttl_s:
-                return cached[1].model_copy(update={"from_cache": True})
+                return cached[1].model_copy(
+                    update={"from_cache": True, "cache_age_s": now - cached[0]}
+                )
             bundle = await self._search(query)
             if bundle.status in {ContextStatus.OK, ContextStatus.NO_RESULTS}:
                 self._cache[query] = (time.monotonic(), bundle)
+            elif cached:
+                age = time.monotonic() - cached[0]
+                return cached[1].model_copy(
+                    update={
+                        "status": ContextStatus.STALE,
+                        "from_cache": True,
+                        "cache_age_s": age,
+                        "warnings": (
+                            "Tavily refresh failed; cached context is stale and advisory only",
+                        ),
+                    }
+                )
             return bundle
 
     def _query(self, mission: Mission) -> str:

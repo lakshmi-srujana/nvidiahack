@@ -33,3 +33,14 @@ def load_suite(path: Path) -> tuple[list[AttackCase], dict[str, str]]:
 
 def suite_hash(hashes: dict[str, str]) -> str:
     return canonical_hash(dict(sorted(hashes.items())))
+
+
+def validate_review_manifest(path: Path, expected_suite_hash: str) -> dict:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if document.get("status") != "APPROVED":
+        raise ValueError("attack suite review manifest is not approved")
+    if document.get("suite_sha256") != expected_suite_hash:
+        raise ValueError("attack suite changed after review")
+    if not document.get("reviewer") or not document.get("reviewed_at_utc"):
+        raise ValueError("attack suite review lacks reviewer provenance")
+    return document

@@ -14,6 +14,7 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpe
 from app.config import Settings
 from app.errors import ErrorCode, ServiceError
 from app.llm.router import ModelSelection
+from app.llm.usage import PriceCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,10 @@ class InferenceTrace:
     mission_id: str | None
     stage: str
     requested_tier: str
+    actual_tier: str
     actual_model_id: str
+    routing_reason: str
+    prompt_revision: str
     started_at_utc: str
     latency_ms: int
     input_tokens: int | None
@@ -46,6 +50,7 @@ class NebiusClient:
         self.settings = settings
         self._client: AsyncOpenAI | None = None
         self._semaphore = asyncio.Semaphore(settings.nebius_max_concurrent_calls)
+        self._prices = PriceCatalog(settings.model_price_file)
         self.traces: list[InferenceTrace] = []
 
     async def start(self) -> None:
@@ -85,6 +90,7 @@ class NebiusClient:
         *,
         json_mode: bool | None = None,
         mission_id: str | None = None,
+        prompt_revision: str = "unknown",
     ) -> tuple[dict[str, Any], InferenceTrace]:
         started = time.perf_counter()
         started_at = datetime.now(timezone.utc).isoformat()
@@ -97,7 +103,10 @@ class NebiusClient:
                     mission_id=mission_id,
                     stage=stage,
                     requested_tier=selection.tier,
+                    actual_tier=selection.tier,
                     actual_model_id=selection.model_id,
+                    routing_reason=selection.reason,
+                    prompt_revision=prompt_revision,
                     started_at_utc=started_at,
                     latency_ms=0,
                     input_tokens=None,
@@ -131,19 +140,29 @@ class NebiusClient:
                     payload = json.loads(content)
                     usage = getattr(response, "usage", None)
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
+                    input_tokens = getattr(usage, "prompt_tokens", None)
+                    output_tokens = getattr(usage, "completion_tokens", None)
+                    estimated_cost, cost_status = self._prices.estimate(
+                        selection.model_id, input_tokens, output_tokens
+                    )
                     trace = InferenceTrace(
                         trace_id=trace_id,
                         mission_id=mission_id,
                         stage=stage,
                         requested_tier=selection.tier,
+                        actual_tier=selection.tier,
                         actual_model_id=selection.model_id,
+                        routing_reason=selection.reason,
+                        prompt_revision=prompt_revision,
                         started_at_utc=started_at,
                         latency_ms=int((time.perf_counter() - started) * 1000),
-                        input_tokens=getattr(usage, "prompt_tokens", None),
-                        output_tokens=getattr(usage, "completion_tokens", None),
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
                         total_tokens=getattr(usage, "total_tokens", None),
                         success=True,
                         provider_request_id=getattr(response, "_request_id", None),
+                        estimated_cost_usd=estimated_cost,
+                        cost_status=cost_status,
                         response_truncated=finish_reason == "length",
                     )
                     self._record_trace(trace)
@@ -177,7 +196,10 @@ class NebiusClient:
                 mission_id=mission_id,
                 stage=stage,
                 requested_tier=selection.tier,
+                actual_tier=selection.tier,
                 actual_model_id=selection.model_id,
+                routing_reason=selection.reason,
+                prompt_revision=prompt_revision,
                 started_at_utc=started_at,
                 latency_ms=int((time.perf_counter() - started) * 1000),
                 input_tokens=None,

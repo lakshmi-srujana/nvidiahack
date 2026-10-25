@@ -62,6 +62,7 @@ async def probe(
                             {"role": "user", "content": "Capability probe."},
                         ],
                         json_mode=json_mode,
+                        prompt_revision="capability_probe_v1",
                     )
                     item["structured_completion_ok"] = payload.get("probe_ok") is True
                     item["status"] = "PASS" if item["structured_completion_ok"] else "BAD_PAYLOAD"

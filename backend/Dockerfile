@@ -4,6 +4,7 @@ WORKDIR /app
 COPY backend/requirements.lock ./requirements.lock
 RUN pip install --no-cache-dir -r requirements.lock
 COPY backend/pyproject.toml ./
+COPY backend/config ./config
 COPY backend/app ./app
 COPY backend/bench ./bench
 RUN pip install --no-cache-dir --no-deps . \

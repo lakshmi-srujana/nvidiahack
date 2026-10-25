@@ -8,7 +8,7 @@ from typing import Annotated, Callable
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings, get_settings
@@ -245,7 +245,12 @@ def create_app(
         operation = request.app.state.service.operations.get(mission_id)
         if not operation:
             raise HTTPException(404, "mission operation not found")
-        return envelope(status=operation.status, operation_id=operation.operation_id, mission_id=mission_id, payload={"attempt": operation.attempt, "handoff_ref": operation.handoff_ref}, error=operation.error)
+        latest_violations = (
+            [item.model_dump(mode="json") for item in operation.verdicts[-1].violations]
+            if operation.verdicts
+            else []
+        )
+        return envelope(status=operation.status, operation_id=operation.operation_id, mission_id=mission_id, payload={"attempt": operation.attempt, "plan_count": len(operation.plans), "verdict_count": len(operation.verdicts), "latest_violations": latest_violations, "handoff_ref": operation.handoff_ref, "context_status": operation.context_status, "context_warnings": operation.context_warnings}, error=operation.error)
 
     @app.get("/api/v1/missions/{mission_id}/ai-traces", dependencies=[Depends(authorized)])
     async def ai_traces(mission_id: str, request: Request) -> dict:
@@ -308,6 +313,32 @@ def create_app(
         if not records:
             raise HTTPException(404, "benchmark case not found")
         return {"run_id": run_id, "case_id": case_id, "records": records}
+
+    @app.get("/api/v1/benchmarks/{run_id}/breakdowns", dependencies=[Depends(authorized)])
+    async def benchmark_breakdowns(run_id: str) -> dict:
+        import json
+
+        scoreboard = json.loads(
+            benchmark_path(run_id, "scoreboard.json").read_text(encoding="utf-8")
+        )
+        return {"run_id": run_id, "breakdowns": scoreboard.get("breakdowns", {})}
+
+    @app.get(
+        "/api/v1/benchmarks/{run_id}/artifacts/{artifact}",
+        dependencies=[Depends(authorized)],
+    )
+    async def benchmark_artifact(run_id: str, artifact: str):
+        allowed = {
+            "scoreboard.json",
+            "results.json",
+            "run_manifest.json",
+            "attempts.jsonl",
+            "attempts.csv",
+        }
+        if artifact not in allowed:
+            raise HTTPException(404, "benchmark artifact not found")
+        path = benchmark_path(run_id, artifact)
+        return FileResponse(path, filename=f"{run_id}-{artifact}")
 
     @app.websocket("/ws/mission/{mission_id}")
     async def ws_mission(websocket: WebSocket, mission_id: str) -> None:

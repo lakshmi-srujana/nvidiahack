@@ -6,6 +6,7 @@ from typing import Protocol
 
 from app.context import ContextBundle
 from app.contracts import (
+    Certificate,
     EventFamily,
     Mission,
     Plan,
@@ -21,7 +22,7 @@ from app.ports import ExecutionPort, VerifierPort, WorldPort
 
 
 class ProposalEngine(Protocol):
-    async def propose(self, mission: Mission, snapshot: TrustedSnapshot, *, stage: str, previous: Plan | None = None, violations: list[object] | None = None, evidence: tuple[object, ...] = ()) -> Plan: ...
+    async def propose(self, mission: Mission, snapshot: TrustedSnapshot, *, stage: str, previous: Plan | None = None, violations: list[object] | None = None, evidence: tuple[object, ...] = (), trigger_event: SimulationEvent | None = None, previous_accepted: Plan | None = None, previous_certificate: Certificate | None = None) -> Plan: ...
 
 
 class ContextProvider(Protocol):
@@ -44,14 +45,15 @@ class StaticProposalEngine:
     """Test-only deterministic candidate generator; never wire this into production."""
     is_mock = True
 
-    async def propose(self, mission: Mission, snapshot: TrustedSnapshot, *, stage: str, previous: Plan | None = None, violations: list[object] | None = None, evidence: tuple[object, ...] = ()) -> Plan:
+    async def propose(self, mission: Mission, snapshot: TrustedSnapshot, *, stage: str, previous: Plan | None = None, violations: list[object] | None = None, evidence: tuple[object, ...] = (), trigger_event: SimulationEvent | None = None, previous_accepted: Plan | None = None, previous_certificate: Certificate | None = None) -> Plan:
         area = mission.approved_area
         points = [area[0], area[1], area[2], area[0]]
+        parent = previous or previous_accepted
         return Plan(
             mission_id=mission.mission_id,
-            revision=(previous.revision + 1 if previous else 1),
+            revision=(parent.revision + 1 if parent else 1),
             snapshot_revision=snapshot.world_state.revision,
-            parent_plan_id=previous.plan_id if previous else None,
+            parent_plan_id=parent.plan_id if parent else None,
             waypoints=[Waypoint(longitude=p.longitude, latitude=p.latitude, altitude_agl_m=50.0, speed_mps=8.0) for p in points],
         )
 
@@ -85,6 +87,8 @@ class MissionService:
         self._request_operations: dict[tuple[str, int, str], Operation] = {}
         self._event_receipts: dict[str, dict[str, object]] = {}
         self._event_sequence: dict[str, int] = {}
+        self._mission_generation: dict[str, int] = {}
+        self._accepted_plans: dict[str, tuple[Plan, Certificate]] = {}
 
     @staticmethod
     def parse_instruction(operator_instruction: str, approved_area: list, approved_location_label: str, operator_id: str) -> Mission:
@@ -100,12 +104,21 @@ class MissionService:
         operator_id: str,
     ) -> Mission:
         if self.mission_parser is None:
-            return self.parse_instruction(
+            mission = self.parse_instruction(
                 operator_instruction, approved_area, approved_location_label, operator_id
             )
-        return await self.mission_parser.parse(
-            operator_instruction, approved_area, approved_location_label, operator_id
-        )
+        else:
+            mission = await self.mission_parser.parse(
+                operator_instruction, approved_area, approved_location_label, operator_id
+            )
+        if self.status_publisher is not None:
+            await self.status_publisher.publish(
+                mission.mission_id,
+                "PARSER_FINISHED",
+                stage="parser",
+                payload={"objective": mission.objective, "revision": mission.revision},
+            )
+        return mission
 
     async def plan(
         self,
@@ -114,6 +127,7 @@ class MissionService:
         *,
         initial_stage: str = "planner",
         idempotency_key: str | None = None,
+        trigger_event: SimulationEvent | None = None,
     ) -> Operation:
         request_key = (
             (mission.mission_id, mission.revision, idempotency_key)
@@ -136,6 +150,10 @@ class MissionService:
                 self._request_operations[request_key] = operation
             await self._publish(operation, "PLANNING_STARTED", stage=initial_stage)
             candidate: Plan | None = None
+            generation = self._mission_generation.get(mission.mission_id, 0)
+            accepted = self._accepted_plans.get(mission.mission_id)
+            previous_accepted = accepted[0] if accepted else None
+            previous_certificate = accepted[1] if accepted else None
             try:
                 snapshot = await self.world.get_snapshot(mission.mission_id)
                 evidence: tuple[object, ...] = ()
@@ -154,7 +172,7 @@ class MissionService:
                             stage="repair",
                             payload={"attempt": attempt},
                         )
-                    candidate = await self.engine.propose(mission, snapshot, stage=initial_stage if attempt == 0 else "repair", previous=candidate, violations=(operation.verdicts[-1].violations if operation.verdicts else None), evidence=evidence)
+                    candidate = await self.engine.propose(mission, snapshot, stage=initial_stage if attempt == 0 else "repair", previous=candidate, violations=(operation.verdicts[-1].violations if operation.verdicts else None), evidence=evidence, trigger_event=trigger_event, previous_accepted=previous_accepted, previous_certificate=previous_certificate)
                     if candidate.mission_id != mission.mission_id or candidate.snapshot_revision != snapshot.world_state.revision:
                         raise ServiceError(ErrorCode.STATE_STALE, "candidate does not bind to current trusted snapshot")
                     operation.plans.append(candidate)
@@ -177,10 +195,19 @@ class MissionService:
                         latest = await self.world.get_snapshot(mission.mission_id)
                         if latest.world_state.revision != snapshot.world_state.revision:
                             raise ServiceError(ErrorCode.STATE_STALE, "world changed before plan handoff")
+                        if self._mission_generation.get(mission.mission_id, 0) != generation:
+                            raise ServiceError(
+                                ErrorCode.STATE_STALE,
+                                "mission or event state changed before plan handoff",
+                            )
                         assert verdict.certificate is not None
                         if verdict.certificate.plan_id != candidate.plan_id or verdict.certificate.snapshot_revision != snapshot.world_state.revision:
                             raise ServiceError(ErrorCode.VERIFIER_FAILED, "certificate does not match candidate and snapshot")
                         operation.handoff_ref = await self.execution.request_plan_handoff(candidate, verdict.certificate)
+                        self._accepted_plans[mission.mission_id] = (
+                            candidate,
+                            verdict.certificate,
+                        )
                         operation.status = "VERIFIED"
                         await self._publish(
                             operation,
@@ -248,13 +275,6 @@ class MissionService:
                     "status": "RECORDED_NO_REPLAN",
                     "event_id": event.event_id,
                 }
-            elif event.family in {EventFamily.LOW_BATTERY, EventFamily.WIND_SPIKE}:
-                # The external deterministic runtime must act first. No contract currently
-                # supplies the explicit permission needed for an AI contingency proposal.
-                receipt = {
-                    "status": "RUNTIME_ACTION_REQUIRED_NO_REPLAN",
-                    "event_id": event.event_id,
-                }
             else:
                 if event.family is EventFamily.OPERATOR_MISSION_CHANGE:
                     previous = self.operations.get(mission.mission_id)
@@ -263,12 +283,45 @@ class MissionService:
                             ErrorCode.VALIDATION_FAILED,
                             "operator mission change requires a newer approved mission revision",
                         )
-                operation = await self.plan(mission, operation_id, initial_stage="replanner")
+                self._mission_generation[mission.mission_id] = (
+                    self._mission_generation.get(mission.mission_id, 0) + 1
+                )
+
+            if event.family in {EventFamily.LOW_BATTERY, EventFamily.WIND_SPIKE}:
+                # The external deterministic runtime must act first. No contract currently
+                # supplies the explicit permission needed for an AI contingency proposal.
+                receipt = {
+                    "status": "RUNTIME_ACTION_REQUIRED_NO_REPLAN",
+                    "event_id": event.event_id,
+                }
+            elif event.family is not EventFamily.SURVIVOR_DETECTED:
+                if self.status_publisher is not None:
+                    await self.status_publisher.publish(
+                        mission.mission_id,
+                        "AI_REPLAN_STARTED",
+                        operation_id=operation_id,
+                        stage="replanner",
+                        payload={"event_id": event.event_id, "family": event.family.value},
+                    )
+                operation = await self.plan(
+                    mission,
+                    operation_id,
+                    initial_stage="replanner",
+                    trigger_event=event,
+                )
                 receipt = {
                     "status": operation.status,
                     "event_id": event.event_id,
                     "operation_id": operation_id,
                 }
+                if self.status_publisher is not None:
+                    await self.status_publisher.publish(
+                        mission.mission_id,
+                        "AI_REPLAN_FINISHED",
+                        operation_id=operation_id,
+                        stage="replanner",
+                        payload={"event_id": event.event_id, "status": operation.status},
+                    )
             self._event_sequence[event.mission_id] = event.sequence
             self._event_receipts[event.event_id] = receipt
             return receipt

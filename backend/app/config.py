@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     tavily_cache_ttl_s: int = 900
     tavily_max_results: int = 4
     max_repair_attempts: int = 3
+    model_price_file: Path = Path("config/model_prices.json")
     max_request_body_bytes: int = 1_000_000
     api_rate_limit_requests: int = 120
     api_rate_limit_window_s: int = 60

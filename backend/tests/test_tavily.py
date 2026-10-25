@@ -93,3 +93,49 @@ async def test_tavily_failure_never_looks_like_no_results() -> None:
     assert bundle.status is ContextStatus.UNAVAILABLE
     assert bundle.items == ()
     assert bundle.warnings
+
+
+@pytest.mark.asyncio
+async def test_failed_refresh_returns_explicitly_stale_cached_context() -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "url": "https://official.example/advisory",
+                            "title": "Flood advisory",
+                            "content": "Road closure remains in effect.",
+                        }
+                    ]
+                },
+            )
+        return httpx.Response(503, json={"detail": "offline"})
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    context = TavilyContextClient(
+        Settings(
+            _env_file=None,
+            tavily_enabled=True,
+            tavily_api_key="test-key",
+            tavily_cache_ttl_s=0,
+        ),
+        http_client=http_client,
+    )
+    assert (await context.context_for(mission())).status is ContextStatus.OK
+    query = context._query(mission())
+    cached_at, cached_bundle = context._cache[query]
+    context._cache[query] = (cached_at - 1, cached_bundle)
+    stale = await context.context_for(mission())
+    await http_client.aclose()
+
+    assert stale.status is ContextStatus.STALE
+    assert stale.from_cache is True
+    assert stale.cache_age_s is not None
+    assert stale.items[0].domain == "official.example"
+    assert "stale" in stale.warnings[0]

@@ -4,9 +4,10 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.contracts import Mission, Plan, TrustedSnapshot
+from app.contracts import Certificate, Mission, Plan, SimulationEvent, TrustedSnapshot
 from app.errors import ErrorCode, ServiceError
 from app.llm.client import NebiusClient
+from app.llm.prompts import load_prompt
 from app.llm.router import ModelRouter
 
 
@@ -28,22 +29,27 @@ class NebiusProposalEngine:
         previous: Plan | None = None,
         violations: list[object] | None = None,
         evidence: tuple[object, ...] = (),
+        trigger_event: SimulationEvent | None = None,
+        previous_accepted: Plan | None = None,
+        previous_certificate: Certificate | None = None,
     ) -> Plan:
         selection = self.router.select(stage)
+        system_prompt, prompt_revision = load_prompt(stage)
         trusted: dict[str, Any] = {
             "mission": mission.model_dump(mode="json"),
             "snapshot": snapshot.model_dump(mode="json"),
             "rejected_plan": previous.model_dump(mode="json") if previous else None,
             "violations": [v.model_dump(mode="json") for v in violations or []],
+            "trigger_event": trigger_event.model_dump(mode="json") if trigger_event else None,
+            "previous_accepted_plan": previous_accepted.model_dump(mode="json") if previous_accepted else None,
+            "previous_certificate_ref": (
+                previous_certificate.certificate_ref if previous_certificate else None
+            ),
         }
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "Return only JSON for one unverified SURVEY plan. The external verifier "
-                    "decides safety. Do not emit certificates, policy changes, rescue actions, "
-                    "or commentary. Keep the supplied mission and snapshot identifiers exactly."
-                ),
+                "content": system_prompt,
             },
             {"role": "user", "content": __import__("json").dumps(trusted)},
         ]
@@ -60,7 +66,11 @@ class NebiusProposalEngine:
                 }
             )
         payload, trace = await self.client.json_completion(
-            selection, stage, messages, mission_id=mission.mission_id
+            selection,
+            stage,
+            messages,
+            mission_id=mission.mission_id,
+            prompt_revision=prompt_revision,
         )
         try:
             return Plan.model_validate(payload)

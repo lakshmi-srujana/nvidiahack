@@ -40,6 +40,9 @@ External components can be connected without modifying orchestration by calling
 verifier=..., execution=..., engine=...)`. Production startup rejects any
 adapter or proposal engine whose `is_mock` attribute is true.
 
+Production prerequisites, smoke checks, limitations, and rollback are documented
+in [`backend/DEPLOYMENT.md`](./backend/DEPLOYMENT.md).
+
 ## Verify
 
 ```powershell
@@ -75,3 +78,20 @@ For a running local test service:
 .\.venv\Scripts\python.exe scripts/smoke_api.py --exercise-mock
 .\.venv\Scripts\python.exe scripts/verify_release.py
 ```
+
+## Benchmarks
+
+Run a bounded/resumable suite through a real adapter factory:
+
+```powershell
+.\.venv\Scripts\python.exe -m bench.run `
+  --suite bench/cases/fixed-v1.jsonl `
+  --adapter your_package.benchmark_adapter:create `
+  --output-dir ../results/run-001 `
+  --run-id run-001 --concurrency 2 --resume
+```
+
+The runner stores one initial candidate per case for fair RAW/GATED/FULL
+pairing, never executes RAW plans, and exports JSONL, CSV, results, scoreboard,
+and an immutable-input manifest. The included `bench.fixture_adapter` is only
+for pipeline smoke tests and requires `--allow-mock`.

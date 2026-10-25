@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.contracts import Mission, Point
 from app.errors import ErrorCode, ServiceError
 from app.llm.client import NebiusClient
+from app.llm.prompts import load_prompt
 from app.llm.router import ModelRouter
 
 
@@ -81,17 +82,14 @@ class NebiusMissionParser:
             operator_id,
         )
         selection = self.router.select("parser")
+        system_prompt, prompt_revision = load_prompt("parser")
         payload, trace = await self.client.json_completion(
             selection,
             "parser",
             [
                 {
                     "role": "system",
-                    "content": (
-                        "Classify a survey-only instruction. Return JSON with objective=SURVEY, "
-                        "the supplied approved_location_label unchanged, requires_clarification, "
-                        "and unsupported_actions. Never create coordinates or authorization."
-                    ),
+                    "content": system_prompt,
                 },
                 {
                     "role": "user",
@@ -104,6 +102,7 @@ class NebiusMissionParser:
                 },
             ],
             mission_id=mission.mission_id,
+            prompt_revision=prompt_revision,
         )
         try:
             intent = ParsedSurveyIntent.model_validate(payload)
