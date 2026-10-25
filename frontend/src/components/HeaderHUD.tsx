@@ -16,6 +16,8 @@ import {
   Pause,
   RotateCcw,
   Activity,
+  CloudSun,
+  Download,
 } from "lucide-react";
 
 interface HeaderHUDProps {
@@ -25,10 +27,13 @@ interface HeaderHUDProps {
   certificate: Certificate | null;
   isSimRunning: boolean;
   simSpeed: number;
+  isLiveWeather: boolean;
   onToggleSim: () => void;
   onChangeSpeed: (spd: number) => void;
   onResetSim: () => void;
   onSelectScenario: (scenarioId: string) => void;
+  onToggleLiveWeather: () => void;
+  onExportAudit: () => void;
 }
 
 export const HeaderHUD: React.FC<HeaderHUDProps> = ({
@@ -38,10 +43,13 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   certificate,
   isSimRunning,
   simSpeed,
+  isLiveWeather,
   onToggleSim,
   onChangeSpeed,
   onResetSim,
   onSelectScenario,
+  onToggleLiveWeather,
+  onExportAudit,
 }) => {
   // Format monotonic seconds to MM:SS
   const formatTime = (secs: number) => {
@@ -210,26 +218,42 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </div>
         </div>
 
-        {/* Ambient Wind Gauge */}
+        {/* Ambient Wind & Live Weather Gauge */}
         <div
           className="glass-panel-elevated"
-          style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: "8px" }}
+          onClick={onToggleLiveWeather}
+          style={{
+            padding: "6px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            cursor: "pointer",
+            border: isLiveWeather ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(255, 255, 255, 0.12)",
+          }}
+          title={isLiveWeather ? "Live Open-Meteo weather active. Click to switch to scenario manual." : "Click to fetch live Open-Meteo weather."}
         >
-          <Wind size={18} color={world.wind_speed_mps <= 12 ? "#10b981" : "#ef4444"} />
+          {isLiveWeather ? (
+            <CloudSun size={18} color="#10b981" />
+          ) : (
+            <Wind size={18} color={world.wind_speed_mps <= 12 ? "#38bdf8" : "#ef4444"} />
+          )}
           <div>
-            <div style={{ fontSize: "0.65rem", color: "#94a3b8", textTransform: "uppercase" }}>
-              Ambient Wind
+            <div style={{ fontSize: "0.62rem", color: "#94a3b8", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "4px" }}>
+              {isLiveWeather && <span className="pulse-indicator" style={{ backgroundColor: "#10b981", width: "6px", height: "6px" }} />}
+              {isLiveWeather ? "OPEN-METEO LIVE" : "SCENARIO WIND"}
             </div>
             <div
               className="mono"
               style={{
-                fontSize: "0.9rem",
+                fontSize: "0.85rem",
                 fontWeight: 700,
                 color: world.wind_speed_mps <= 12 ? "#f8fafc" : "#ef4444",
               }}
             >
-              {world.wind_speed_mps.toFixed(1)}{" "}
-              <span style={{ fontSize: "0.7rem", color: "#64748b" }}>m/s</span>
+              {world.wind_speed_mps.toFixed(1)} m/s{" "}
+              <span style={{ fontSize: "0.68rem", color: "#94a3b8" }}>
+                ({world.ambient_temperature_c.toFixed(0)}°C)
+              </span>
             </div>
           </div>
         </div>
@@ -296,6 +320,16 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
             </button>
           ))}
         </div>
+
+        {/* Export Audit Log Button */}
+        <button
+          className="btn btn-outline"
+          onClick={onExportAudit}
+          style={{ padding: "8px", color: "#38bdf8" }}
+          title="Export Simulation Audit Log (JSON)"
+        >
+          <Download size={16} />
+        </button>
 
         {/* Reset Simulation Button */}
         <button

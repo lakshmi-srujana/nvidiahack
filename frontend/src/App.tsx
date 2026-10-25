@@ -21,18 +21,26 @@ import {
   DEFAULT_SAFETY_POLICY,
 } from "./services/mockData";
 import { verifyPlanClient, haversineDistanceM } from "./services/clientVerifier";
+import { fetchOpenMeteoWeather } from "./services/weatherService";
+import {
+  saveSessionToStorage,
+  loadSessionFromStorage,
+  exportAuditLogFile,
+} from "./services/storageService";
 import { HeaderHUD } from "./components/HeaderHUD";
 import { TacticalMap } from "./components/TacticalMap";
 import { PlanReviewPanel } from "./components/PlanReviewPanel";
 import { MissionSetupPanel } from "./components/MissionSetupPanel";
 import { SimulationControls } from "./components/SimulationControls";
 import { ResearchPanel } from "./components/ResearchPanel";
+import { ScoreboardPanel } from "./components/ScoreboardPanel";
 import { InterventionModal } from "./components/InterventionModal";
 import {
   CheckSquare,
   Compass,
   Activity,
   Sparkles,
+  Trophy,
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -60,8 +68,54 @@ export const App: React.FC = () => {
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const [interventionReason, setInterventionReason] = useState("");
 
+  // --- Weather & Storage State ---
+  const [isLiveWeather, setIsLiveWeather] = useState(false);
+
   // --- Active Right Panel Tab ---
-  const [activeTab, setActiveTab] = useState<"review" | "setup" | "sim" | "research">("review");
+  const [activeTab, setActiveTab] = useState<"review" | "setup" | "sim" | "research" | "scoreboard">("review");
+
+  // Auto-persist session to local storage
+  useEffect(() => {
+    saveSessionToStorage({
+      mission,
+      plan,
+      certificate,
+      events,
+      world,
+    });
+  }, [mission, plan, certificate, events, world]);
+
+  // Toggle Open-Meteo Live Weather
+  const handleToggleLiveWeather = async () => {
+    if (isLiveWeather) {
+      setIsLiveWeather(false);
+      emitEvent("TELEMETRY_TICK", { weather: "MANUAL_SCENARIO_RESTORED" }, "SIMULATOR");
+      return;
+    }
+    setIsLiveWeather(true);
+    const weatherData = await fetchOpenMeteoWeather(37.4220, -122.0845);
+    setWorld((w) => ({
+      ...w,
+      wind_speed_mps: weatherData.wind_speed_mps,
+      wind_direction_deg: weatherData.wind_direction_deg,
+      ambient_temperature_c: weatherData.temperature_c,
+      weather_condition: weatherData.weather_condition,
+    }));
+    emitEvent(
+      "TELEMETRY_TICK",
+      {
+        source: "OPEN_METEO_API",
+        wind_mps: weatherData.wind_speed_mps,
+        temp_c: weatherData.temperature_c,
+        condition: weatherData.weather_condition,
+      },
+      "WEATHER_SENSOR"
+    );
+  };
+
+  const handleExportAudit = () => {
+    exportAuditLogFile(events, mission.mission_id);
+  };
 
   // Helper to record an event
   const emitEvent = (
@@ -113,8 +167,16 @@ export const App: React.FC = () => {
     }
   };
 
-  // Run initial verification on mount
+  // Run initial verification and load persisted session on mount
   useEffect(() => {
+    const saved = loadSessionFromStorage();
+    if (saved) {
+      if (saved.mission) setMission(saved.mission);
+      if (saved.plan) setPlan(saved.plan);
+      if (saved.certificate) setCertificate(saved.certificate);
+      if (saved.events && saved.events.length > 0) setEvents(saved.events);
+      if (saved.world) setWorld(saved.world);
+    }
     handleRunVerification();
   }, []);
 
@@ -554,10 +616,13 @@ export const App: React.FC = () => {
         certificate={certificate}
         isSimRunning={isSimRunning}
         simSpeed={simSpeed}
+        isLiveWeather={isLiveWeather}
         onToggleSim={() => setIsSimRunning(!isSimRunning)}
         onChangeSpeed={setSimSpeed}
         onResetSim={() => handleSelectScenario("scenario_flood")}
         onSelectScenario={handleSelectScenario}
+        onToggleLiveWeather={handleToggleLiveWeather}
+        onExportAudit={handleExportAudit}
       />
 
       {/* Main Command & Control Layout */}
@@ -654,6 +719,21 @@ export const App: React.FC = () => {
               <Sparkles size={14} />
               Tavily Intel
             </button>
+
+            <button
+              className="btn"
+              style={{
+                flex: 1,
+                fontSize: "0.8rem",
+                background: activeTab === "scoreboard" ? "rgba(0, 229, 255, 0.2)" : "transparent",
+                color: activeTab === "scoreboard" ? "#00e5ff" : "#94a3b8",
+                border: "none",
+              }}
+              onClick={() => setActiveTab("scoreboard")}
+            >
+              <Trophy size={14} />
+              Scoreboard
+            </button>
           </div>
 
           {/* Active Tab Panel Content */}
@@ -690,6 +770,8 @@ export const App: React.FC = () => {
           )}
 
           {activeTab === "research" && <ResearchPanel />}
+
+          {activeTab === "scoreboard" && <ScoreboardPanel />}
         </div>
       </main>
 
