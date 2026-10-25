@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "mission_id": "msn-val-001",
+  "objective_type": "SURVEY_AREA",
+  "survey_area": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [-122.0850, 37.4215],
+        [-122.0800, 37.4215],
+        [-122.0800, 37.4255],
+        [-122.0850, 37.4255],
+        [-122.0850, 37.4215]
+      ]
+    ]
+  },
+  "operator_instruction": "Perform systematic search and survey across Sector Alpha for stranded hikers after flash flood.",
+  "operator_restrictions": {
+    "min_altitude_agl_m": 25.0,
+    "max_altitude_agl_m": 80.0,
+    "max_speed_mps": 12.0
+  },
+  "status": "DRAFT",
+  "created_at": "2026-10-25T12:00:00Z"
+}

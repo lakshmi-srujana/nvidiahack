@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "pln-inval-geofence",
+  "mission_id": "msn-val-001",
+  "revision": 1,
+  "waypoints": [
+    {
+      "waypoint_id": "wp-bad-001",
+      "longitude": -122.0845,
+      "latitude": 37.4220,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY"
+    },
+    {
+      "waypoint_id": "wp-bad-002",
+      "longitude": -122.0710,
+      "latitude": 37.4290,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY"
+    }
+  ],
+  "provenance": {
+    "planner_type": "AI_ORCHESTRATOR",
+    "repair_attempt": 0
+  },
+  "estimated_duration_s": 240.0,
+  "estimated_energy_wh": 28.0,
+  "created_at": "2026-10-25T12:10:00Z",
+  "expected_violations": [
+    {
+      "rule_id": "RULE_01_GEOFENCE_CONTAINMENT",
+      "severity": "CRITICAL",
+      "message": "Waypoint wp-bad-002 [-122.0710, 37.4290] breaches authorized survey geofence boundary.",
+      "observed": [-122.0710, 37.4290],
+      "limit": "survey_area_polygon",
+      "waypoint_refs": ["wp-bad-002"],
+      "remediation": "Clip waypoints inside survey area polygon with 10m buffer."
+    }
+  ]
+}
