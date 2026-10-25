@@ -1,0 +1,390 @@
+{
+  "$comment": "PROVISIONAL adapter schemas; replace after shared contract freeze.",
+  "models": {
+    "Mission": {
+      "$defs": {
+        "Point": {
+          "additionalProperties": false,
+          "properties": {
+            "latitude": {
+              "maximum": 90,
+              "minimum": -90,
+              "title": "Latitude",
+              "type": "number"
+            },
+            "longitude": {
+              "maximum": 180,
+              "minimum": -180,
+              "title": "Longitude",
+              "type": "number"
+            }
+          },
+          "required": [
+            "longitude",
+            "latitude"
+          ],
+          "title": "Point",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "approved_area": {
+          "items": {
+            "$ref": "#/$defs/Point"
+          },
+          "minItems": 3,
+          "title": "Approved Area",
+          "type": "array"
+        },
+        "approved_location_label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Approved Location Label",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "mission_id": {
+          "minLength": 1,
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "objective": {
+          "default": "SURVEY",
+          "title": "Objective",
+          "type": "string"
+        },
+        "operator_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operator Id",
+          "type": "string"
+        },
+        "revision": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "provisional-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "approved_area",
+        "approved_location_label",
+        "operator_id"
+      ],
+      "title": "Mission",
+      "type": "object"
+    },
+    "Plan": {
+      "$defs": {
+        "Waypoint": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Action"
+            },
+            "altitude_agl_m": {
+              "exclusiveMinimum": 0,
+              "maximum": 10000,
+              "title": "Altitude Agl M",
+              "type": "number"
+            },
+            "dwell_s": {
+              "anyOf": [
+                {
+                  "maximum": 3600,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Dwell S"
+            },
+            "latitude": {
+              "maximum": 90,
+              "minimum": -90,
+              "title": "Latitude",
+              "type": "number"
+            },
+            "longitude": {
+              "maximum": 180,
+              "minimum": -180,
+              "title": "Longitude",
+              "type": "number"
+            },
+            "speed_mps": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "title": "Speed Mps",
+              "type": "number"
+            }
+          },
+          "required": [
+            "longitude",
+            "latitude",
+            "altitude_agl_m",
+            "speed_mps"
+          ],
+          "title": "Waypoint",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "mission_id": {
+          "minLength": 1,
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "parent_plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Plan Id"
+        },
+        "plan_id": {
+          "minLength": 1,
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "snapshot_revision": {
+          "minLength": 1,
+          "title": "Snapshot Revision",
+          "type": "string"
+        },
+        "waypoints": {
+          "items": {
+            "$ref": "#/$defs/Waypoint"
+          },
+          "maxItems": 500,
+          "minItems": 2,
+          "title": "Waypoints",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mission_id",
+        "revision",
+        "snapshot_revision",
+        "waypoints"
+      ],
+      "title": "Plan",
+      "type": "object"
+    },
+    "SimulationEvent": {
+      "$defs": {
+        "EventFamily": {
+          "enum": [
+            "SURVIVOR_DETECTED",
+            "LOW_BATTERY",
+            "WIND_SPIKE",
+            "OPERATOR_MISSION_CHANGE",
+            "NEW_RESTRICTED_ZONE"
+          ],
+          "title": "EventFamily",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "minLength": 1,
+          "title": "Event Id",
+          "type": "string"
+        },
+        "family": {
+          "$ref": "#/$defs/EventFamily"
+        },
+        "mission_id": {
+          "minLength": 1,
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "occurred_at": {
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "sequence": {
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "state_revision": {
+          "minLength": 1,
+          "title": "State Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "mission_id",
+        "sequence",
+        "family",
+        "state_revision",
+        "source"
+      ],
+      "title": "SimulationEvent",
+      "type": "object"
+    },
+    "VerificationResult": {
+      "$defs": {
+        "Certificate": {
+          "additionalProperties": false,
+          "properties": {
+            "certificate_ref": {
+              "minLength": 1,
+              "title": "Certificate Ref",
+              "type": "string"
+            },
+            "issuer": {
+              "minLength": 1,
+              "title": "Issuer",
+              "type": "string"
+            },
+            "plan_id": {
+              "minLength": 1,
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "snapshot_revision": {
+              "minLength": 1,
+              "title": "Snapshot Revision",
+              "type": "string"
+            }
+          },
+          "required": [
+            "certificate_ref",
+            "plan_id",
+            "snapshot_revision",
+            "issuer"
+          ],
+          "title": "Certificate",
+          "type": "object"
+        },
+        "Violation": {
+          "additionalProperties": false,
+          "properties": {
+            "affected_waypoint_indices": {
+              "items": {
+                "type": "integer"
+              },
+              "title": "Affected Waypoint Indices",
+              "type": "array"
+            },
+            "applicable_limit": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Applicable Limit"
+            },
+            "message": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Message",
+              "type": "string"
+            },
+            "observed_value": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Observed Value"
+            },
+            "rule_id": {
+              "minLength": 1,
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "rule_id",
+            "message"
+          ],
+          "title": "Violation",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "certificate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Certificate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "violations": {
+          "items": {
+            "$ref": "#/$defs/Violation"
+          },
+          "title": "Violations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "passed"
+      ],
+      "title": "VerificationResult",
+      "type": "object"
+    }
+  }
+}
