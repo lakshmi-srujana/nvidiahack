@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type {
   Mission,
   Plan,
@@ -19,6 +19,9 @@ import {
   INITIAL_MISSION,
   INITIAL_VALID_PLAN,
   DEFAULT_SAFETY_POLICY,
+  DAM_SURGE_ZONE,
+  DAM_BREACH_PLAN,
+  BATTERY_CRITICAL_PLAN,
 } from "./services/mockData";
 import { verifyPlanClient, haversineDistanceM } from "./services/clientVerifier";
 import { fetchOpenMeteoWeather } from "./services/weatherService";
@@ -44,22 +47,27 @@ import {
 } from "lucide-react";
 
 export const App: React.FC = () => {
+  // Pre-load session if available
+  const initialSession = loadSessionFromStorage();
+
   // --- Core State ---
-  const [mission, setMission] = useState<Mission>(INITIAL_MISSION);
-  const [plan, setPlan] = useState<Plan | null>(INITIAL_VALID_PLAN);
-  const [world, setWorld] = useState<WorldState>(INITIAL_WORLD_STATE);
+  const [mission, setMission] = useState<Mission>(() => initialSession?.mission ?? INITIAL_MISSION);
+  const [plan, setPlan] = useState<Plan | null>(() => initialSession?.plan ?? INITIAL_VALID_PLAN);
+  const [world, setWorld] = useState<WorldState>(() => initialSession?.world ?? INITIAL_WORLD_STATE);
   const [drone, setDrone] = useState<DroneState>(INITIAL_DRONE_STATE);
   const [policy] = useState<SafetyPolicy>(DEFAULT_SAFETY_POLICY);
 
   // --- Verification & Certificate State ---
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const [certificate, setCertificate] = useState<Certificate | null>(null);
+  const [certificate, setCertificate] = useState<Certificate | null>(() => initialSession?.certificate ?? null);
   const [isVerifying, setIsVerifying] = useState(false);
 
   // --- Simulation & Live Event State ---
   const [isSimRunning, setIsSimRunning] = useState(false);
   const [simSpeed, setSimSpeed] = useState<number>(1);
-  const [events, setEvents] = useState<SimulationEvent[]>([]);
+  const [events, setEvents] = useState<SimulationEvent[]>(() =>
+    initialSession?.events && initialSession.events.length > 0 ? initialSession.events : []
+  );
   const [breadcrumbs, setBreadcrumbs] = useState<Coordinate[]>([[...INITIAL_DRONE_STATE.location]]);
   const [survivorLocation, setSurvivorLocation] = useState<Coordinate | null>(null);
 
@@ -118,27 +126,31 @@ export const App: React.FC = () => {
   };
 
   // Helper to record an event
-  const emitEvent = (
-    eventType: SimulationEvent["event_type"],
-    payload: any,
-    source: SimulationEvent["source"] = "SIMULATOR"
-  ) => {
-    const newEvt: SimulationEvent = {
-      event_id: `EVT-${(events.length + 1).toString().padStart(5, "0")}`,
-      mission_id: mission.mission_id,
-      event_type: eventType,
-      payload,
-      sim_time_s: drone.sim_time_s,
-      sequence: events.length + 1,
-      source,
-      created_at: new Date().toISOString(),
-    };
-    setEvents((prev) => [...prev, newEvt]);
-    return newEvt;
-  };
+  const emitEvent = useCallback(
+    (
+      eventType: SimulationEvent["event_type"],
+      payload: any,
+      source: SimulationEvent["source"] = "SIMULATOR"
+    ) => {
+      setEvents((prev) => {
+        const newEvt: SimulationEvent = {
+          event_id: `EVT-${(prev.length + 1).toString().padStart(5, "0")}`,
+          mission_id: mission.mission_id,
+          event_type: eventType,
+          payload,
+          sim_time_s: drone.sim_time_s,
+          sequence: prev.length + 1,
+          source,
+          created_at: new Date().toISOString(),
+        };
+        return [...prev, newEvt];
+      });
+    },
+    [mission.mission_id, drone.sim_time_s]
+  );
 
   // Run Deterministic Verification
-  const handleRunVerification = async () => {
+  const handleRunVerification = useCallback(async () => {
     if (!plan) return;
     setIsVerifying(true);
     const { result, certificate: cert } = await verifyPlanClient(
@@ -165,20 +177,15 @@ export const App: React.FC = () => {
         violations_count: result.violations.length,
       });
     }
-  };
+  }, [plan, mission, world, policy, drone, emitEvent]);
 
-  // Run initial verification and load persisted session on mount
+  // Run initial verification on mount
   useEffect(() => {
-    const saved = loadSessionFromStorage();
-    if (saved) {
-      if (saved.mission) setMission(saved.mission);
-      if (saved.plan) setPlan(saved.plan);
-      if (saved.certificate) setCertificate(saved.certificate);
-      if (saved.events && saved.events.length > 0) setEvents(saved.events);
-      if (saved.world) setWorld(saved.world);
-    }
-    handleRunVerification();
-  }, []);
+    const timer = setTimeout(() => {
+      void handleRunVerification();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [handleRunVerification]);
 
   // Launch Flight (Only allowed if certified)
   const handleLaunchFlight = () => {
@@ -278,7 +285,7 @@ export const App: React.FC = () => {
     }, 1000 / simSpeed);
 
     return () => clearInterval(interval);
-  }, [isSimRunning, drone.is_airborne, plan, simSpeed, world.wind_speed_mps]);
+  }, [isSimRunning, drone.is_airborne, plan, simSpeed, world.wind_speed_mps, emitEvent]);
 
   // Scenario Switcher
   const handleSelectScenario = (scenarioId: string) => {
@@ -334,6 +341,22 @@ export const App: React.FC = () => {
       };
       setPlan(hazardBreachPlan);
       setWorld(INITIAL_WORLD_STATE);
+    } else if (scenarioId === "scenario_dam") {
+      setWorld({
+        ...INITIAL_WORLD_STATE,
+        restricted_zones: [...INITIAL_WORLD_STATE.restricted_zones, DAM_SURGE_ZONE],
+        world_revision: INITIAL_WORLD_STATE.world_revision + 1,
+      });
+      setPlan(DAM_BREACH_PLAN);
+      setDrone(INITIAL_DRONE_STATE);
+    } else if (scenarioId === "scenario_battery") {
+      setWorld(INITIAL_WORLD_STATE);
+      setPlan(BATTERY_CRITICAL_PLAN);
+      setDrone({
+        ...INITIAL_DRONE_STATE,
+        battery_pct: 18.0,
+        battery_wh: 18.0,
+      });
     }
 
     setTimeout(() => handleRunVerification(), 100);

@@ -288,6 +288,8 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           <option value="scenario_wind">Scenario 2: High Wind Violation</option>
           <option value="scenario_geofence">Scenario 3: Geofence Breach Rejection</option>
           <option value="scenario_hazard">Scenario 4: Hazard Substation Breach</option>
+          <option value="scenario_dam">Scenario 5: Dam Breach Surge Zone</option>
+          <option value="scenario_battery">Scenario 6: Battery Critical Emergency RTH</option>
         </select>
 
         {/* Play/Pause Button */}

@@ -191,3 +191,81 @@ export const MOCK_TAVILY_RESEARCH: TavilyResearchResult = {
     "NON-AUTHORITATIVE NOTICE: Tavily intelligence and AI analysis are advisory only. They cannot override platform safety policy, relax flight restrictions, or issue mission certificates.",
   is_cached: true,
 };
+
+export const DAM_SURGE_ZONE = {
+  zone_id: "ZONE-DAM-SURGE-01",
+  name: "Dam Spillway Emergency Surge Inundation Channel",
+  boundary: {
+    type: "Polygon" as const,
+    coordinates: [
+      [
+        [-122.0838, 37.4222],
+        [-122.0828, 37.4222],
+        [-122.0828, 37.4248],
+        [-122.0838, 37.4248],
+        [-122.0838, 37.4222],
+      ] as [number, number][],
+    ],
+  },
+  buffer_m: 30.0,
+  active: true,
+};
+
+export const DAM_BREACH_PLAN: Plan = {
+  schema_version: "1.0.0",
+  plan_id: "PLN-DAM-UNADAPTED",
+  mission_id: "MSN-ALPHA-2026",
+  revision: 1,
+  waypoints: [
+    {
+      waypoint_id: "WP-DAM-01",
+      longitude: -122.0845,
+      latitude: 37.4220,
+      altitude_agl_m: 45.0,
+      speed_mps: 10.0,
+      action: "TRANSIT",
+      dwell_s: 0,
+    },
+    {
+      waypoint_id: "WP-DAM-02",
+      longitude: -122.0833,
+      latitude: 37.4235,
+      altitude_agl_m: 45.0,
+      speed_mps: 10.0,
+      action: "SURVEY",
+      dwell_s: 0,
+    },
+    {
+      waypoint_id: "WP-DAM-03",
+      longitude: -122.0845,
+      latitude: 37.4220,
+      altitude_agl_m: 30.0,
+      speed_mps: 8.0,
+      action: "RETURN_HOME",
+      dwell_s: 0,
+    },
+  ],
+  provenance: {
+    planner_type: "AI_ORCHESTRATOR",
+    repair_attempt: 0,
+  },
+  estimated_duration_s: 220.0,
+  estimated_energy_wh: 22.0,
+  created_at: new Date().toISOString(),
+};
+
+export const BATTERY_CRITICAL_PLAN: Plan = {
+  schema_version: "1.0.0",
+  plan_id: "PLN-BATTERY-EXCESSIVE",
+  mission_id: "MSN-ALPHA-2026",
+  revision: 1,
+  waypoints: INITIAL_VALID_PLAN.waypoints,
+  provenance: {
+    planner_type: "AI_ORCHESTRATOR",
+    repair_attempt: 0,
+  },
+  estimated_duration_s: 900.0,
+  estimated_energy_wh: 85.0,
+  created_at: new Date().toISOString(),
+};
+

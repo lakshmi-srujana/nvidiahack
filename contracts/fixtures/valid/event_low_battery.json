@@ -1,0 +1,16 @@
+{
+  "event_id": "EVT-00042",
+  "mission_id": "msn-val-001",
+  "event_type": "LOW_BATTERY",
+  "payload": {
+    "current_battery_pct": 18.0,
+    "remaining_wh": 18.0,
+    "return_energy_required_wh": 12.4,
+    "threshold_pct": 20.0,
+    "warning": "Battery level below mandatory 20% reserve threshold."
+  },
+  "sim_time_s": 240.0,
+  "sequence": 42,
+  "source": "SIMULATOR",
+  "created_at": "2026-10-25T12:09:00Z"
+}

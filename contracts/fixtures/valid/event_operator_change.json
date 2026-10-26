@@ -1,0 +1,13 @@
+{
+  "event_id": "EVT-00046",
+  "mission_id": "msn-val-001",
+  "event_type": "OPERATOR_MISSION_CHANGE",
+  "payload": {
+    "change": "EXPAND_SURVEY_SECTOR",
+    "operator": "Lead SAR Coordinator"
+  },
+  "sim_time_s": 400.0,
+  "sequence": 46,
+  "source": "OPERATOR",
+  "created_at": "2026-10-25T12:11:40Z"
+}

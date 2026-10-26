@@ -1,0 +1,15 @@
+{
+  "event_id": "EVT-00044",
+  "mission_id": "msn-val-001",
+  "event_type": "SURVIVOR_DETECTED",
+  "payload": {
+    "detection_id": "DET-094",
+    "location": [-122.0834, 37.4239],
+    "confidence": 0.94,
+    "source": "AI_FORWARD_VISION"
+  },
+  "sim_time_s": 310.0,
+  "sequence": 44,
+  "source": "AI_DETECTOR",
+  "created_at": "2026-10-25T12:10:10Z"
+}
