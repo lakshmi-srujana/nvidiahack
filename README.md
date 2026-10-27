@@ -7,7 +7,20 @@ simulator. All flight and telemetry shown here are simulated.
 ## Run locally
 
 Requirements: Python 3.11, Node.js 22 or newer, and npm. In PowerShell, from the
-project root, install and start the backend:
+project root, start both services with one command:
+
+```powershell
+.\start.ps1
+```
+
+The script installs missing local dependencies, waits for the API and dashboard
+proxy, and prints the dashboard URL. Keep the terminal open; Ctrl+C stops both
+servers. Logs are written under ignored `results/startup/`. Use `-OpenBrowser`
+to open the dashboard automatically, or `-BackendPort` and `-FrontendPort` to
+choose different ports. If both services are already healthy on those ports,
+the script reports their URL and exits.
+
+For manual setup, install and start the backend:
 
 ```powershell
 cd backend
