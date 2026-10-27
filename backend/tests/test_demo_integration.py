@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -81,3 +82,20 @@ def test_event_replan_is_reverified_and_repairs_are_bounded():
             assert result["certificate"] is None
             assert result["replan_attempts"] == attempt
         assert api.post("/api/v1/demo/replan").status_code == 409
+
+
+@pytest.mark.parametrize("family", [
+    "SURVIVOR_DETECTED", "LOW_BATTERY", "WIND_SPIKE",
+    "NEW_RESTRICTED_ZONE", "OPERATOR_MISSION_CHANGE",
+])
+def test_each_approved_event_pauses_and_invalidates_certificate(family):
+    with client() as api:
+        assert api.post("/api/v1/demo/verify").json()["certificate"]
+        assert api.post("/api/v1/demo/launch").status_code == 200
+        result = api.post("/api/v1/demo/event", json={"family": family})
+        assert result.status_code == 200
+        body = result.json()
+        assert body["status"] == "INTERVENTION_REQUIRED"
+        assert body["certificate"] is None
+        assert body["events"][-1]["event_type"] == family
+        assert api.post("/api/v1/demo/tick").status_code == 409

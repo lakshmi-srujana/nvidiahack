@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -15,14 +16,17 @@ def git_metadata() -> dict[str, Any]:
     root = Path(__file__).resolve().parents[2]
 
     def command(*args: str) -> str | None:
-        completed = subprocess.run(
-            ["git", *args], cwd=root, text=True, capture_output=True, check=False
-        )
+        try:
+            completed = subprocess.run(
+                ["git", *args], cwd=root, text=True, capture_output=True, check=False
+            )
+        except OSError:
+            return None
         return completed.stdout.strip() if completed.returncode == 0 else None
 
     status = command("status", "--porcelain")
     return {
-        "commit_sha": command("rev-parse", "HEAD"),
+        "commit_sha": command("rev-parse", "HEAD") or os.getenv("SKYWARDEN_COMMIT_SHA"),
         "branch": command("branch", "--show-current"),
         "working_tree_dirty": bool(status) if status is not None else None,
     }

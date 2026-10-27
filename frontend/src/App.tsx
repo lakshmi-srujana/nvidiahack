@@ -71,7 +71,15 @@ export default function App() {
     try { setState(await request(path, body)); } catch (e) { setError(e instanceof Error ? e.message : "Request failed"); }
     finally { setBusy(false); }
   }, []);
-  useEffect(() => { void perform("/state"); }, [perform]);
+  useEffect(() => {
+    let active = true;
+    void request("/state").then((initial) => {
+      if (active) setState(initial);
+    }).catch((cause: unknown) => {
+      if (active) setError(cause instanceof Error ? cause.message : "Request failed");
+    });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (state?.status !== "ACTIVE" || busy) return;
     const timer = window.setTimeout(() => void perform("/tick", {}), 1000);

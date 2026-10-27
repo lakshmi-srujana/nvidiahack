@@ -4,7 +4,7 @@ import pytest
 
 from bench.attacks import load_suite
 from bench.batch import run_batch
-from bench.cli import aggregate
+from bench.cli import aggregate, git_metadata
 from bench.fixture_adapter import FixtureBenchmarkAdapter
 from bench.runner import Mode
 
@@ -89,3 +89,16 @@ async def test_resume_does_not_regenerate_a_missing_paired_candidate(tmp_path: P
     failed = [record for record in records if record["mode"] != "RAW"]
     assert len(failed) == 2
     assert {record["error_code"] for record in failed} == {"GENERATION_FAILED"}
+
+
+def test_manifest_metadata_survives_container_without_git(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unavailable(*_args, **_kwargs):
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr("bench.cli.subprocess.run", unavailable)
+    monkeypatch.setenv("SKYWARDEN_COMMIT_SHA", "verified-image-sha")
+    assert git_metadata() == {
+        "commit_sha": "verified-image-sha",
+        "branch": None,
+        "working_tree_dirty": None,
+    }

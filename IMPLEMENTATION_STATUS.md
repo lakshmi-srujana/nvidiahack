@@ -26,8 +26,9 @@ Remaining before the full project plan's definition of done:
   plus a real end-to-end model/replanner trace within an agreed credit budget.
 - Connect persistent SQLite/audit history, live weather, Tavily provenance and
   actual benchmark artifacts to the dashboard.
-- Run browser end-to-end, clean-machine/container, deployment and rehearsal
-  checks; record the team's safety and UX sign-offs.
+- Run clean-machine, production deployment and rehearsal checks; record the
+  team's safety and UX sign-offs. The offline browser and container checks are
+  recorded in `VERIFICATION_REPORT.md`.
 
 The earlier offline benchmark and backend APIs remain available. The integrated
 dashboard currently uses the separate `/api/v1/demo` endpoints, not the

@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 .coverage
 coverage.xml
 htmlcov/
@@ -16,6 +17,11 @@ node_modules/
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+*.tsbuildinfo
+playwright-report/
+test-results/
 .vscode/
 .idea/
 .DS_Store
