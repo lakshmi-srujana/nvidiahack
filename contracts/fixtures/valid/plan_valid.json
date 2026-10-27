@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "pln-val-001",
+  "mission_id": "msn-val-001",
+  "revision": 1,
+  "waypoints": [
+    {
+      "waypoint_id": "wp-001",
+      "longitude": -122.0845,
+      "latitude": 37.4220,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY",
+      "dwell_s": 0.0
+    },
+    {
+      "waypoint_id": "wp-002",
+      "longitude": -122.0805,
+      "latitude": 37.4220,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY",
+      "dwell_s": 0.0
+    },
+    {
+      "waypoint_id": "wp-003",
+      "longitude": -122.0805,
+      "latitude": 37.4235,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY",
+      "dwell_s": 0.0
+    },
+    {
+      "waypoint_id": "wp-004",
+      "longitude": -122.0845,
+      "latitude": 37.4235,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY",
+      "dwell_s": 0.0
+    },
+    {
+      "waypoint_id": "wp-005",
+      "longitude": -122.0845,
+      "latitude": 37.4250,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY",
+      "dwell_s": 0.0
+    },
+    {
+      "waypoint_id": "wp-006",
+      "longitude": -122.0805,
+      "latitude": 37.4250,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY",
+      "dwell_s": 0.0
+    },
+    {
+      "waypoint_id": "wp-007",
+      "longitude": -122.0845,
+      "latitude": 37.4220,
+      "altitude_agl_m": 30.0,
+      "speed_mps": 8.0,
+      "action": "RETURN_HOME",
+      "dwell_s": 0.0
+    }
+  ],
+  "provenance": {
+    "planner_type": "DETERMINISTIC_GRID",
+    "repair_attempt": 0
+  },
+  "estimated_duration_s": 420.0,
+  "estimated_energy_wh": 48.5,
+  "created_at": "2026-10-25T12:05:00Z"
+}

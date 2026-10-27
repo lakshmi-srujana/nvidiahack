@@ -1,97 +1,82 @@
-# SkyWarden backend
+# SkyWarden
 
-This repository contains the mission-intelligence backend described in
-[`SkyWarden_My_Backend_Implementation.md`](./SkyWarden_My_Backend_Implementation.md).
-It intentionally ships **provisional adapter DTOs** because no shared frozen
-contract package was present when this scaffold was built.
-
-## Safety boundary
-
-The backend creates *unverified* survey-plan proposals. Only an externally
-owned verifier may return a matching certificate; only an external execution
-gate may receive the plan. The production startup path rejects the included
-mock world, verifier, execution, and static-planner adapters.
+SkyWarden is a local, single-drone disaster-survey simulation. The dashboard
+connects to a FastAPI backend, a deterministic verifier and a discrete-time
+simulator. All flight and telemetry shown here are simulated.
 
 ## Run locally
 
-Requirements: Python 3.11 and PowerShell. The first run installs the pinned
-backend and development dependencies.
+Requirements: Python 3.11, Node.js 22 or newer, and npm. In PowerShell, from the
+project root, install and start the backend:
 
 ```powershell
-cd E:\projects\nvidiahack\backend
+cd backend
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock
 .\.venv\Scripts\python.exe -m pip install --no-deps -e .
-Copy-Item .env.example .env
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open <http://127.0.0.1:8000/docs> for interactive API documentation or
-<http://127.0.0.1:8000/health> to confirm the service is running. Stop the
-development server with `Ctrl+C`.
+In a second terminal:
 
-The copied `.env` starts in `APP_MODE=development`, which uses test adapters
-only. Configure a verified Nebius model and token to enable the strict Nebius
-proposal engine; do not mark the backend production-ready until real shared
-world/verifier/execution adapters replace the mocks.
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
 
-External components can be connected without modifying orchestration by calling
-`create_app(settings, service_factory=...)` or `build_service(..., world=...,
-verifier=..., execution=..., engine=...)`. Production startup rejects any
-adapter or proposal engine whose `is_mock` attribute is true.
+Open http://localhost:5173. The backend provides interactive API documentation at
+http://127.0.0.1:8000/docs. Stop each process with Ctrl+C.
 
-Production prerequisites, smoke checks, limitations, and rollback are documented
-in [`backend/DEPLOYMENT.md`](./backend/DEPLOYMENT.md).
+The demo works without provider keys. To enable the optional AI proposal button,
+configure the Nebius credentials and model IDs in the ignored
+`backend/.env` using `backend/.env.example`. Clicking the button sends a paid
+request; provider retries may occur. Automated tests never call paid providers.
+Never put provider keys in frontend files or commit them.
 
-## Verify
+## Try the demo
+
+1. Choose the nominal flash-flood scenario, or expand **Create a survey area**
+   and enter an instruction containing “survey” and rectangle coordinates.
+2. Select **Verify plan**. A passing plan receives a certificate; violations
+   remain visible when validation fails.
+3. Select **Launch simulation**. The route, drone and telemetry are simulated.
+4. Inject an event. The simulation pauses and its certificate is invalidated.
+   Review the event, then select **Replan & verify** or request an AI proposal
+   before launch.
+5. Select the dam, high-wind, or low-battery scenario to see a rejected plan.
+
+See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for details and
+[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for remaining work.
+
+## Verification
 
 ```powershell
 cd backend
-.\.venv\Scripts\ruff.exe check app bench tests scripts
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe scripts/export_contracts.py --check
-```
-
-The OpenAPI server exposes `/health`, `/ready`, mission parse/plan/status,
-event receipt, a mission-status WebSocket, and read-only benchmark scoreboard
-artifacts. Provider APIs are never called by tests or CI.
-
-## Live provider probes
-
-Put real values in the ignored `backend/.env`; never paste or commit provider
-keys. First verify exact model IDs from the authenticated catalog. Completion
-probing can incur provider cost and is only run when explicitly requested.
-
-```powershell
-cd backend
-.\.venv\Scripts\python.exe scripts/probe_nebius.py
-.\.venv\Scripts\python.exe scripts/probe_nebius.py --run-completion --json-mode
-.\.venv\Scripts\python.exe scripts/probe_tavily.py --location "approved district"
-```
-
-Only add exact model IDs that pass JSON-mode probing to
-`NEBIUS_JSON_MODE_MODELS`. The generated capability report contains no API key.
-
-For a running local test service:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/smoke_api.py --exercise-mock
 .\.venv\Scripts\python.exe scripts/verify_release.py
+cd ..
+.\backend\.venv\Scripts\python.exe -m pytest tests -q
+cd frontend
+npm run build
 ```
 
-## Benchmarks
+## Boundaries and limitations
 
-Run a bounded/resumable suite through a real adapter factory:
-
-```powershell
-.\.venv\Scripts\python.exe -m bench.run `
-  --suite bench/cases/fixed-v1.jsonl `
-  --adapter your_package.benchmark_adapter:create `
-  --output-dir ../results/run-001 `
-  --run-id run-001 --concurrency 2 --resume
-```
-
-The runner stores one initial candidate per case for fair RAW/GATED/FULL
-pairing, never executes RAW plans, and exports JSONL, CSV, results, scoreboard,
-and an immutable-input manifest. The included `bench.fixture_adapter` is only
-for pipeline smoke tests and requires `--allow-mock`.
+- The verification policy, simulated weather, energy model and scenarios are
+  prototype assumptions; the project is not approved for real aircraft.
+- The integrated demo is process-local and limited to one active simulation.
+  Restarting the backend clears its state. SQLite and the earlier benchmark,
+  Tavily and WebSocket modules are present but are not wired into this demo UI.
+- The legacy general mission API uses development mocks unless real adapters
+  are injected; the integrated demo endpoints use the Python verifier and
+  simulator. Demo routes are disabled in production mode.
+- The two branches arrived with different provisional Python and TypeScript
+  data models. The adapter converts between them; shared field-level contracts
+  remain pre-freeze and still require both developers' review.
+- The optional AI button performs one proposal without automatic repairs, to
+  limit cost. The operator can replan the remaining route with up to three
+  verification attempts; this does not automatically compute hazard detours.
+  A live provider end-to-end run remains to be verified.
+- The route display is a schematic, not a geographic basemap. It is not a
+  navigation tool. The custom survey planner follows the rectangle perimeter;
+  it does not establish full area coverage.

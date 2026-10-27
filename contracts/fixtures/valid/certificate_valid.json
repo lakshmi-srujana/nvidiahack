@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "certificate_id": "cert-val-001",
+  "mission_id": "msn-val-001",
+  "plan_id": "pln-val-001",
+  "verification_ref": "vrf-val-001",
+  "plan_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "policy_ref": "pol-v1.0",
+  "world_ref": "wld-rev-001",
+  "issued_at": "2026-10-25T12:06:00Z",
+  "is_valid": true,
+  "rule_results": [
+    {
+      "rule_id": "RULE_01_GEOFENCE_CONTAINMENT",
+      "name": "Geofence Containment",
+      "passed": true,
+      "message": "All waypoints and flight segments are completely contained within the approved mission geofence boundary."
+    },
+    {
+      "rule_id": "RULE_02_RESTRICTED_ZONE_CLEARANCE",
+      "name": "Restricted Zone Clearance",
+      "passed": true,
+      "message": "All waypoints maintain required safety buffer (25.0m) from active restricted zones."
+    },
+    {
+      "rule_id": "RULE_03_ALTITUDE_AGL_BOUNDS",
+      "name": "Altitude AGL Bounds",
+      "passed": true,
+      "message": "All waypoints are between 25.0m and 80.0m AGL."
+    },
+    {
+      "rule_id": "RULE_04_MAX_SPEED_LIMIT",
+      "name": "Max Speed Limit",
+      "passed": true,
+      "message": "Planned speed (10.0 m/s) does not exceed restriction limit (12.0 m/s)."
+    },
+    {
+      "rule_id": "RULE_05_ENERGY_BUDGET_RESERVE",
+      "name": "Energy Budget & Reserve",
+      "passed": true,
+      "message": "Estimated mission energy (48.5 Wh) leaves 51.5 Wh (51.5% reserve), exceeding required 20% reserve."
+    },
+    {
+      "rule_id": "RULE_06_RETURN_TO_HOME_FEASIBILITY",
+      "name": "Return-to-Home Feasibility",
+      "passed": true,
+      "message": "Return-to-home is feasible from all waypoints with remaining battery."
+    },
+    {
+      "rule_id": "RULE_07_WIND_SPEED_LIMIT",
+      "name": "Wind Speed Limit",
+      "passed": true,
+      "message": "Current wind speed (4.2 m/s) is within operational limit (12.0 m/s)."
+    },
+    {
+      "rule_id": "RULE_08_PHYSICS_SCHEMA_SANITY",
+      "name": "Physics & Schema Sanity",
+      "passed": true,
+      "message": "Coordinates are finite WGS84, speeds and altitudes are valid non-negative numbers."
+    },
+    {
+      "rule_id": "RULE_09_MISSION_TIME_WAYPOINTS_CAP",
+      "name": "Mission Duration & Waypoints Cap",
+      "passed": true,
+      "message": "Plan has 7 waypoints (cap: 100) and estimated duration 420s (cap: 1800s)."
+    },
+    {
+      "rule_id": "RULE_10_CONSTRAINT_INTEGRITY",
+      "name": "Constraint & Injection Integrity",
+      "passed": true,
+      "message": "No unverified external prompt text has modified mandatory safety bounds."
+    }
+  ]
+}

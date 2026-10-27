@@ -12,6 +12,10 @@ htmlcov/
 *.egg-info/
 build/
 dist/
+node_modules/
+*.db
+*.db-shm
+*.db-wal
 .vscode/
 .idea/
 .DS_Store

@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "pln-inval-altitude",
+  "mission_id": "msn-val-001",
+  "revision": 1,
+  "waypoints": [
+    {
+      "waypoint_id": "wp-alt-001",
+      "longitude": -122.0845,
+      "latitude": 37.4220,
+      "altitude_agl_m": 8.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY"
+    }
+  ],
+  "provenance": {
+    "planner_type": "AI_ORCHESTRATOR",
+    "repair_attempt": 0
+  },
+  "estimated_duration_s": 60.0,
+  "estimated_energy_wh": 6.0,
+  "created_at": "2026-10-25T12:10:00Z",
+  "expected_violations": [
+    {
+      "rule_id": "RULE_03_ALTITUDE_AGL_BOUNDS",
+      "severity": "CRITICAL",
+      "message": "Waypoint wp-alt-001 altitude 8.0m AGL is below minimum floor 15.0m AGL.",
+      "observed": 8.0,
+      "limit": 15.0,
+      "unit": "m AGL",
+      "waypoint_refs": ["wp-alt-001"]
+    }
+  ]
+}

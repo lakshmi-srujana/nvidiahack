@@ -7,6 +7,8 @@ COPY backend/pyproject.toml ./
 COPY backend/config ./config
 COPY backend/app ./app
 COPY backend/bench ./bench
+COPY simulator ./simulator
+COPY verifier ./verifier
 RUN pip install --no-cache-dir --no-deps . \
     && useradd --create-home --uid 10001 appuser
 ENV PYTHONPATH=/app

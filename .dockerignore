@@ -8,3 +8,5 @@
 **/*.egg-info
 backend/tests
 results
+**/node_modules
+**/dist

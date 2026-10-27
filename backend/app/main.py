@@ -135,6 +135,10 @@ def create_app(
         factory = service_factory or build_service
         service, client, context = factory(config, broker)
         app.state.service, app.state.nebius, app.state.context = service, client, context
+        if config.app_mode != "production":
+            from app.demo import DemoRuntime
+
+            app.state.demo = DemoRuntime()
         await client.start()
         await context.start()
         yield
@@ -339,6 +343,11 @@ def create_app(
             raise HTTPException(404, "benchmark artifact not found")
         path = benchmark_path(run_id, artifact)
         return FileResponse(path, filename=f"{run_id}-{artifact}")
+
+    if config.app_mode != "production":
+        from app.demo import demo_router
+
+        app.include_router(demo_router(Depends(authorized)))
 
     @app.websocket("/ws/mission/{mission_id}")
     async def ws_mission(websocket: WebSocket, mission_id: str) -> None:

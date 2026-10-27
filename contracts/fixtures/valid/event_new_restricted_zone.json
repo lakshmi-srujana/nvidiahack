@@ -1,0 +1,14 @@
+{
+  "event_id": "EVT-00045",
+  "mission_id": "msn-val-001",
+  "event_type": "NEW_RESTRICTED_ZONE",
+  "payload": {
+    "zone_id": "ZONE-SURGE-02",
+    "name": "Emergency Flood Surge Channel",
+    "buffer_m": 25.0
+  },
+  "sim_time_s": 360.0,
+  "sequence": 45,
+  "source": "OPERATOR",
+  "created_at": "2026-10-25T12:11:00Z"
+}

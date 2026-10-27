@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "pln-inval-hazard",
+  "mission_id": "msn-val-001",
+  "revision": 1,
+  "waypoints": [
+    {
+      "waypoint_id": "wp-haz-001",
+      "longitude": -122.0820,
+      "latitude": 37.4234,
+      "altitude_agl_m": 45.0,
+      "speed_mps": 10.0,
+      "action": "SURVEY"
+    }
+  ],
+  "provenance": {
+    "planner_type": "AI_ORCHESTRATOR",
+    "repair_attempt": 0
+  },
+  "estimated_duration_s": 60.0,
+  "estimated_energy_wh": 6.0,
+  "created_at": "2026-10-25T12:10:00Z",
+  "expected_violations": [
+    {
+      "rule_id": "RULE_02_RESTRICTED_ZONE_CLEARANCE",
+      "severity": "CRITICAL",
+      "message": "Waypoint wp-haz-001 breaches buffer for restricted zone ZONE-HAZARD-01.",
+      "observed": [-122.0820, 37.4234],
+      "limit": "ZONE-HAZARD-01",
+      "waypoint_refs": ["wp-haz-001"]
+    }
+  ]
+}
