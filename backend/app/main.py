@@ -153,7 +153,7 @@ def create_app(
         redoc_url=None if config.app_mode == "production" else "/redoc",
     )
     app.state.status_broker = broker
-    app.add_middleware(CORSMiddleware, allow_origins=config.allowed_origins, allow_credentials=config.api_auth_mode != "none", allow_methods=["GET", "POST"], allow_headers=["Content-Type", "X-API-Key", "Idempotency-Key"])
+    app.add_middleware(CORSMiddleware, allow_origins=config.allowed_origins, allow_credentials=config.api_auth_mode != "none", allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type", "X-API-Key", "Idempotency-Key"])
 
     @app.middleware("http")
     async def inbound_limits(request: Request, call_next):

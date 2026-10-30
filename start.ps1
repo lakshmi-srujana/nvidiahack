@@ -13,6 +13,7 @@ $vite = Join-Path $frontendDir 'node_modules\vite\bin\vite.js'
 $logDir = Join-Path $root 'results\startup'
 $backend = $null
 $frontend = $null
+$ollama = $null
 
 function Test-PortInUse([int]$port) {
     $client = [System.Net.Sockets.TcpClient]::new()
@@ -53,7 +54,47 @@ function Stop-ProcessTree([int]$processId) {
     Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
 }
 
+function Test-LocalVisionService {
+    try {
+        $tags = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -TimeoutSec 2
+        return $null -ne ($tags.models | Where-Object { $_.name -eq 'qwen3.5:2b' } | Select-Object -First 1)
+    } catch { return $false }
+}
+
+function Start-LocalVisionIfInstalled {
+    if (Test-LocalVisionService) { return $null }
+    try {
+        Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -TimeoutSec 2 | Out-Null
+        return $null
+    } catch {}
+    $binary = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
+    if (-not (Test-Path -LiteralPath $binary)) { return $null }
+    $candidates = @($env:SKYWARDEN_OLLAMA_MODELS, $env:OLLAMA_MODELS,
+        (Join-Path $env:USERPROFILE '.ollama\models'), 'D:\ollama-models')
+    $modelRoot = $candidates | Where-Object {
+        $_ -and (Test-Path -LiteralPath (Join-Path $_ 'manifests\registry.ollama.ai\library\qwen3.5\2b'))
+    } | Select-Object -First 1
+    if (-not $modelRoot) { return $null }
+    $previousModels = $env:OLLAMA_MODELS
+    try {
+        $env:OLLAMA_MODELS = $modelRoot
+        $process = Start-Process -FilePath $binary -ArgumentList 'serve' -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput (Join-Path $logDir 'ollama.out.log') `
+            -RedirectStandardError (Join-Path $logDir 'ollama.err.log')
+    } finally {
+        $env:OLLAMA_MODELS = $previousModels
+    }
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        if (Test-LocalVisionService) { return $process }
+        Start-Sleep -Milliseconds 500
+    }
+    return $process
+}
+
 if ($BackendPort -eq $FrontendPort) { throw 'BackendPort and FrontendPort must differ.' }
+
+New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+$ollama = Start-LocalVisionIfInstalled
 
 $backendBusy = Test-PortInUse $BackendPort
 $frontendBusy = Test-PortInUse $FrontendPort
@@ -92,7 +133,6 @@ if (-not (Test-Path $vite)) {
     }
 }
 $node = Get-Command node -ErrorAction Stop
-New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 
 try {
     $env:PYTHONPATH = "$root;$backendDir"
@@ -130,4 +170,5 @@ try {
 } finally {
     if ($frontend) { Stop-ProcessTree $frontend.Id }
     if ($backend) { Stop-ProcessTree $backend.Id }
+    if ($ollama) { Stop-ProcessTree $ollama.Id }
 }

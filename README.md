@@ -41,7 +41,11 @@ npm run dev
 Open http://localhost:5173. The backend provides interactive API documentation at
 http://127.0.0.1:8000/docs. Stop each process with Ctrl+C.
 
-The demo works without provider keys. To enable the optional AI proposal button,
+The demo works without provider keys. The optional local image review uses an
+installed Ollama `qwen3.5:2b` model on `127.0.0.1:11434`; `start.ps1`
+starts Ollama when it finds that model locally. If its model store is custom,
+set `SKYWARDEN_OLLAMA_MODELS` to that directory before starting. It never
+calls Nebius vision. To enable the separate paid AI route proposal button,
 configure the Nebius credentials and model IDs in the ignored
 `backend/.env` using `backend/.env.example`. Clicking the button sends a paid
 request; provider retries may occur. Automated tests never call paid providers.
@@ -49,18 +53,29 @@ Never put provider keys in frontend files or commit them.
 
 ## Try the demo
 
-1. Choose the nominal flash-flood scenario, or expand **Create a survey area**
-   and enter an instruction containing “survey” and rectangle coordinates.
-2. Select **Verify plan**. A passing plan receives a certificate; violations
-   remain visible when validation fails.
-3. Select **Launch simulation**. The route, drone and telemetry are simulated.
-4. Inject an event. The simulation pauses and its certificate is invalidated.
-   Review the event, then select **Replan & verify** or request an AI proposal
-   before launch.
-5. Select the dam, high-wind, or low-battery scenario to see a rejected plan.
+1. Enter an address or six-digit Indian PIN code and select **Find on map**,
+   or pan and zoom manually. Choose a result, then select **Lock visible area** or
+   **Draw survey polygon**. The locked map shows WGS84 coordinates on hover.
+2. Select **Find mapped features** to inspect OSM buildings, water and
+   industrial/utility sites. Optionally select **Review map image with local AI**
+   to obtain approximate image boxes from Ollama without paid credits.
+   Review each suggestion and its source. **Draft zones from suggestions**
+   maps buildings to planned zones, water to unknown territory and marked
+   utility hazards to restricted zones; each draft can be removed or redrawn.
+3. Draw any of the eight zone types. Draw a manual route or use **Auto route**
+   for a credit-free route around confirmed exclusion zones. A very large
+   area may fail the energy or return-home checks.
+4. Select **Verify & start simulation**, or verify and launch separately.
+   A passing plan receives a certificate; violations block launch.
+5. Inject an event. Pick a survivor coordinate or draw a new restricted
+   zone on the map where applicable. The simulation pauses and its
+   certificate is invalidated. **Replan & verify** computes a detour around
+   confirmed restrictions when possible; review the result before resuming.
+6. Select a seeded unsafe scenario to inspect rejection checks.
 
 See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for details and
 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for remaining work.
+The current plan-by-plan check is in [STATUS_CHECK_2026-10-30.md](STATUS_CHECK_2026-10-30.md).
 
 ## Verification
 
@@ -86,10 +101,22 @@ npm run build
 - The two branches arrived with different provisional Python and TypeScript
   data models. The adapter converts between them; shared field-level contracts
   remain pre-freeze and still require both developers' review.
-- The optional AI button performs one proposal without automatic repairs, to
+- The optional Nebius AI route button performs a paid proposal without automatic repairs, to
   limit cost. The operator can replan the remaining route with up to three
-  verification attempts; this does not automatically compute hazard detours.
+  verification attempts; the local replan computes geographic detours around
+  confirmed restrictions, but does not resume automatically after an event.
   A live provider end-to-end run remains to be verified.
-- The route display is a schematic, not a geographic basemap. It is not a
-  navigation tool. The custom survey planner follows the rectangle perimeter;
-  it does not establish full area coverage.
+- Address/PIN search is submitted only by an operator, cached, and uses the
+  public Nominatim service. Avoid confidential address queries. Public use
+  must respect the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/);
+  `SKYWARDEN_GEOCODER_URL` can point to a supported replacement.
+- The interactive map uses MapLibre and live OpenStreetMap tiles with visible
+  attribution. Tiles and feature lookup require internet access; mission
+  coordinates remain listed if tiles fail. OSM tagged ways are suggestions,
+  not complete geographic coverage or authoritative threat detection. Local
+  vision boxes are approximate and require operator review. Small-area
+  OSM API fallback is for light local demonstration; public use needs a
+  supported data service. For another tile service, set `VITE_OSM_TILE_URL`
+  and `VITE_OSM_TILE_ATTRIBUTION` at frontend build time and review its terms.
+  The deterministic route is a prototype survey sweep, not full coverage
+  optimization or a navigation tool.

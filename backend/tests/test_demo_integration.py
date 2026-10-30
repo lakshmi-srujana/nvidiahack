@@ -92,7 +92,13 @@ def test_each_approved_event_pauses_and_invalidates_certificate(family):
     with client() as api:
         assert api.post("/api/v1/demo/verify").json()["certificate"]
         assert api.post("/api/v1/demo/launch").status_code == 200
-        result = api.post("/api/v1/demo/event", json={"family": family})
+        payload = {"family": family}
+        if family == "NEW_RESTRICTED_ZONE":
+            payload["zone_coordinates"] = [
+                [-122.084, 37.4225], [-122.0838, 37.4225],
+                [-122.0838, 37.4227], [-122.084, 37.4227],
+            ]
+        result = api.post("/api/v1/demo/event", json=payload)
         assert result.status_code == 200
         body = result.json()
         assert body["status"] == "INTERVENTION_REQUIRED"

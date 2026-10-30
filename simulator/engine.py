@@ -155,11 +155,9 @@ class MissionSimulator:
         self,
         location: Optional[Tuple[float, float]] = None,
         confidence: float = 0.94,
+        source: str = "AI_DETECTOR",
     ) -> SimulationEvent:
-        pos = location or (
-            self.drone.location[0] + 0.001,
-            self.drone.location[1] + 0.001,
-        )
+        pos = location if location is not None else self.drone.location
         return self.emit_event(
             SimulationEventType.SURVIVOR_DETECTED,
             {
@@ -168,7 +166,7 @@ class MissionSimulator:
                 "confidence": confidence,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
-            source="AI_DETECTOR",
+            source=source,
         )
 
     def inject_low_battery(self) -> SimulationEvent:
